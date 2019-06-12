@@ -1,0 +1,29 @@
+{
+    "name": "jstnryan/slim-access-log",
+    "description": "Access auditing middleware intended for use with Slim Framework applications",
+	"homepage":"https://github.com/jstnryan/slim-access-log",
+	"license": "MIT",
+	"type": "library",
+	"keywords": ["Slim Framework", "access log", "audit log", "accounting"],
+	"readme": "./README.md",
+	"require": {
+		"php": ">=7.1",
+		"ext-json": "*",
+		"ext-pdo": "*",
+		"psr/container": "*",
+		"psr/http-message": "*"
+	},
+	"autoload": {
+		"psr-4": {
+			"jstnryan\\AccessLog\\": "src/"
+		}
+	},
+	"authors": [
+		{
+			"name": "Justin Ryan",
+			"email": "jstn@jstnryan.com",
+			"homepage": "http://jstnryan.com",
+			"role": "developer"
+		}
+	]
+}

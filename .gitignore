@@ -1,0 +1,9 @@
+# Environment / IDE settings files
+/.idea
+.DS_Store
+
+# Application Files
+composer.lock
+
+# Application Directories
+/vendor
