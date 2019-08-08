@@ -51,13 +51,16 @@ class AccessLog {
             $columns[$this->settings['custom'][$i]] = call_user_func($this->custom[$i], $request, $response, null);
         }
         $last = null;
+        $qs = isset($_SERVER['QUERY_STRING']) ?
+            $this->proper_parse_str(urldecode($_SERVER['QUERY_STRING'])) :
+            '';
         if (!$this->settings['writeOnce']) {
             $last = $this->writeBefore(
                 (new DateTime)->setTimestamp($_SERVER['REQUEST_TIME'])->format('Y-m-d H:i:s'),
                 parse_url($_SERVER['REQUEST_URI'])['path'],
                 $this::httpMethodID[$_SERVER['REQUEST_METHOD']],
                 json_encode([
-                    'querystring' => $this->proper_parse_str(urldecode($_SERVER['QUERY_STRING'])),
+                    'querystring' => $qs,
                     'body' => $request->getParsedBody()
                 ]),
                 $columns
@@ -72,7 +75,7 @@ class AccessLog {
                     parse_url($_SERVER['REQUEST_URI'])['path'],
                     $this::httpMethodID[$_SERVER['REQUEST_METHOD']],
                     json_encode([
-                        'querystring' => $this->proper_parse_str(urldecode($_SERVER['QUERY_STRING'])),
+                        'querystring' => $$qs,
                         'body' => $request->getParsedBody()
                     ]),
                     (new DateTime())->format('Y-m-d H:i:s'),
@@ -97,7 +100,7 @@ class AccessLog {
                 parse_url($_SERVER['REQUEST_URI'])['path'],
                 $this::httpMethodID[$_SERVER['REQUEST_METHOD']],
                 json_encode([
-                    'querystring' => $this->proper_parse_str(urldecode($_SERVER['QUERY_STRING'])),
+                    'querystring' => $qs,
                     'body' => $request->getParsedBody()
                 ]),
                 (new DateTime())->format('Y-m-d H:i:s'),
