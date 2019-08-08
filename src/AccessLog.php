@@ -23,11 +23,14 @@ class AccessLog {
 
     /** @var array */
     protected $settings = [
-        'tableName' => 'accessLog',     //the name of the accessLog table to write to
-        'idColumn' => 'accessLogID',    //the name of the autoincrement primary key for the log table
-        'writeOnce' => false,           //false writes to DB for request and response, true waits until after response
-        'custom' => [],                 //a list of custom column names to populate (indexed!)
-        'captureResponse' => false,     //whether or not to record the full body of the response to the call
+        'tableName' => 'accessLog',     // The name of the accessLog table to write to
+        'idColumn' => 'accessLogID',    // The name of the autoincrement primary key for the log table
+        'writeOnce' => false,           // False writes to DB for request and response, true waits until after response
+        'custom' => [],                 // A list of custom column names to populate (indexed!)
+        'captureResponse' => false,     // Whether or not to record the full body of the response to the call
+        'ignoredPaths' =>     [         // Array of stings, each of which represent a path or path root which should not
+            //'/authorize',             //   be logged; for example, '/authorize' matches '/authorize', '/authorize/',
+        ],                              //   and '/authorize/login', but not '/auth'
     ];
 
     /** @var PDO */
@@ -43,81 +46,103 @@ class AccessLog {
     }
 
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, callable $next) {
-        if (count($this->custom) !== count($this->settings['custom'])) {
-            throw new Exception('AccessLog: The number of custom methods passed (' . count($this->custom) . ') does not match the number of custom column names provided (' . count($this->settings['custom']) . ').');
-        }
-        $columns = [];
-        for ($i = 0; $i < count($this->custom); $i++) {
-            $columns[$this->settings['custom'][$i]] = call_user_func($this->custom[$i], $request, $response, null);
-        }
-        $last = null;
-        $qs = isset($_SERVER['QUERY_STRING']) ?
-            $this->proper_parse_str(urldecode($_SERVER['QUERY_STRING'])) :
-            '';
-        if (!$this->settings['writeOnce']) {
-            $last = $this->writeBefore(
-                (new DateTime)->setTimestamp($_SERVER['REQUEST_TIME'])->format('Y-m-d H:i:s'),
-                parse_url($_SERVER['REQUEST_URI'])['path'],
-                $this::httpMethodID[$_SERVER['REQUEST_METHOD']],
-                json_encode([
-                    'querystring' => $qs,
-                    'body' => $request->getParsedBody()
-                ]),
-                $columns
-            );
-        }
-        try {
-            $response = $next($request->withAttribute('accessLogID', $last), $response);
-        } catch (\Exception $e) {
+        /* If request path matches ignore, allow */
+        if ($this->isIgnoredPath($request->getUri()->getPath())) {
+            $response = $next($request, $response);
+        } else {
+            if (count($this->custom) !== count($this->settings['custom'])) {
+                throw new Exception('AccessLog: The number of custom methods passed (' . count($this->custom) . ') does not match the number of custom column names provided (' . count($this->settings['custom']) . ').');
+            }
+            $columns = [];
+            for ($i = 0; $i < count($this->custom); $i++) {
+                $columns[$this->settings['custom'][$i]] = call_user_func($this->custom[$i], $request, $response, null);
+            }
+            $last = null;
+            $qs = isset($_SERVER['QUERY_STRING']) ?
+                $this->proper_parse_str(urldecode($_SERVER['QUERY_STRING'])) :
+                '';
+            if (!$this->settings['writeOnce']) {
+                $last = $this->writeBefore(
+                    (new DateTime)->setTimestamp($_SERVER['REQUEST_TIME'])->format('Y-m-d H:i:s'),
+                    parse_url($_SERVER['REQUEST_URI'])['path'],
+                    $this::httpMethodID[$_SERVER['REQUEST_METHOD']],
+                    json_encode([
+                        'querystring' => $qs,
+                        'body' => $request->getParsedBody()
+                    ]),
+                    $columns
+                );
+            }
+            try {
+                $response = $next($request->withAttribute('accessLogID', $last), $response);
+            } catch (\Exception $e) {
+                if ($this->settings['writeOnce']) {
+                    $this->writeAfter(
+                        (new DateTime)->setTimestamp($_SERVER['REQUEST_TIME'])->format('Y-m-d H:i:s'),
+                        parse_url($_SERVER['REQUEST_URI'])['path'],
+                        $this::httpMethodID[$_SERVER['REQUEST_METHOD']],
+                        json_encode([
+                            'querystring' => $qs,
+                            'body' => $request->getParsedBody()
+                        ]),
+                        (new DateTime())->format('Y-m-d H:i:s'),
+                        $e->getCode(),
+                        $e->getMessage(),
+                        $columns
+                    );
+                } else {
+                    $this->updateAfter(
+                        $last,
+                        (new DateTime())->format('Y-m-d H:i:s'),
+                        $e->getCode(),
+                        $e->getMessage(),
+                        $columns
+                    );
+                }
+                throw $e;
+            }
             if ($this->settings['writeOnce']) {
                 $this->writeAfter(
                     (new DateTime)->setTimestamp($_SERVER['REQUEST_TIME'])->format('Y-m-d H:i:s'),
                     parse_url($_SERVER['REQUEST_URI'])['path'],
                     $this::httpMethodID[$_SERVER['REQUEST_METHOD']],
                     json_encode([
-                        'querystring' => $$qs,
+                        'querystring' => $qs,
                         'body' => $request->getParsedBody()
                     ]),
                     (new DateTime())->format('Y-m-d H:i:s'),
-                    $e->getCode(),
-                    $e->getMessage(),
+                    $response->getStatusCode(),
+                    $this->settings['captureResponse'] ? $response->getBody() : '',
                     $columns
                 );
             } else {
                 $this->updateAfter(
                     $last,
                     (new DateTime())->format('Y-m-d H:i:s'),
-                    $e->getCode(),
-                    $e->getMessage(),
+                    $response->getStatusCode(),
+                    $this->settings['captureResponse'] ? $response->getBody() : '',
                     $columns
                 );
             }
-            throw $e;
-        }
-        if ($this->settings['writeOnce']) {
-            $this->writeAfter(
-                (new DateTime)->setTimestamp($_SERVER['REQUEST_TIME'])->format('Y-m-d H:i:s'),
-                parse_url($_SERVER['REQUEST_URI'])['path'],
-                $this::httpMethodID[$_SERVER['REQUEST_METHOD']],
-                json_encode([
-                    'querystring' => $qs,
-                    'body' => $request->getParsedBody()
-                ]),
-                (new DateTime())->format('Y-m-d H:i:s'),
-                $response->getStatusCode(),
-                $this->settings['captureResponse'] ? $response->getBody() : '',
-                $columns
-            );
-        } else {
-            $this->updateAfter(
-                $last,
-                (new DateTime())->format('Y-m-d H:i:s'),
-                $response->getStatusCode(),
-                $this->settings['captureResponse'] ? $response->getBody() : '',
-                $columns
-            );
         }
         return $response;
+    }
+
+    /**
+     * Determine if the current endpoint is under an ignored path, errors
+     *  on the side of 'false' (allow) if there is an error in matching
+     *
+     * @param string $path
+     * @return bool
+     */
+    protected function isIgnoredPath($path) {
+        $uri = "/" . $path;
+        $uri = preg_replace("#/+#", "/", $uri);
+        foreach ((array)$this->options["ignore"] as $ignore) {
+            $ignore = rtrim($ignore, "/");
+            return !!preg_match("@^{$ignore}(/.*)?$@", $uri);
+        }
+        return false;
     }
 
     //Credit: "Evan K"; https://www.php.net/manual/en/function.parse-str.php#76792

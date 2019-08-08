@@ -40,6 +40,9 @@ A simple access auditing middleware intended for use with Slim Framework applica
            'writeOnce' => false,
            'custom' => [],
            'captureResponse' => false,
+           'ignoredPaths' => [
+               '/exclude-all-paths/under-this-root',
+           ],
        ];
        return new \jstnryan\AccessLog\AccessLog($c->audit_database, $settings);
    };
