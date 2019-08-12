@@ -42,6 +42,9 @@ class AccessLog {
     public function __construct(PDO $db, $settings, ...$custom) {
         $this->db = $db;
         $this->settings = array_merge($this->settings, $settings);
+        if (!is_array($this->settings['ignoredPaths'])) {
+            $this->settings['ignoredPaths'] = [$this->settings['ignoredPaths']];
+        }
         $this->custom = $custom;
     }
 
@@ -138,7 +141,7 @@ class AccessLog {
     protected function isIgnoredPath($path) {
         $uri = "/" . $path;
         $uri = preg_replace("#/+#", "/", $uri);
-        foreach ((array)$this->options["ignore"] as $ignore) {
+        foreach ((array)$this->settings["ignoredPaths"] as $ignore) {
             $ignore = rtrim($ignore, "/");
             return !!preg_match("@^{$ignore}(/.*)?$@", $uri);
         }
