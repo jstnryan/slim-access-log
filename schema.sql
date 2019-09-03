@@ -27,7 +27,7 @@ CREATE TABLE `accessLog` (
     `requestUri` VARCHAR(255) NOT NULL,
     `requestMethod` INT(1) UNSIGNED NOT NULL,
     `requestParams` TEXT,
-    `responseTime` DATETIME NOT NULL,
+    `responseTime` DATETIME DEFAULT NULL,
     `responseStatus` INT(3) UNSIGNED NOT NULL,
     `response` TEXT,
     PRIMARY KEY (`accessLogID`),
