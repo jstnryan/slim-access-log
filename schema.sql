@@ -26,10 +26,10 @@ CREATE TABLE `accessLog` (
     `requestTime` DATETIME NOT NULL,
     `requestUri` VARCHAR(255) NOT NULL,
     `requestMethod` INT(1) UNSIGNED NOT NULL,
-    `requestParams` TEXT,
-    `responseTime` DATETIME NOT NULL,
-    `responseStatus` INT(3) UNSIGNED NOT NULL,
-    `response` TEXT,
+    `requestParams` TEXT DEFAULT NULL,
+    `responseTime` DATETIME DEFAULT NULL,
+    `responseStatus` INT(3) UNSIGNED DEFAULT NULL,
+    `response` TEXT DEFAULT NULL,
     PRIMARY KEY (`accessLogID`),
     FOREIGN KEY (`requestMethod`) REFERENCES `requestMethod`(`requestMethodID`)
 );
