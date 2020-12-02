@@ -224,6 +224,12 @@ class AccessLog {
             $customCols .= ', ' . $k;
         }
 
+        // Force storage of only 3-digit, numeric error codes
+        if ($resCode !== null) {
+            $resCode = is_numeric($resCode) ? (int) $resCode : 500;
+            $resCode = $resCode < 1000 ? $resCode : 500;
+        }
+
         $query = $this->db->prepare('
                 INSERT INTO ' . $this->settings['tableName'] . '
                     (requestTime, requestUri, requestMethod, requestParams, responseTime, responseStatus, response' . $customCols . ')
@@ -260,6 +266,12 @@ class AccessLog {
         }
         if (!empty($customCols)) {
             $customCols = ',' . $customCols;
+        }
+
+        // Force storage of only 3-digit, numeric error codes
+        if ($resCode !== null) {
+            $resCode = is_numeric($resCode) ? (int) $resCode : 500;
+            $resCode = $resCode < 1000 ? $resCode : 500;
         }
 
         $query = $this->db->prepare('
