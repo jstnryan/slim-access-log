@@ -3,9 +3,10 @@
 namespace jstnryan\AccessLog;
 
 use DateTime;
+use Exception;
 use PDO;
+use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\ServerRequestInterface;
 
 class AccessLog {
 
@@ -22,22 +23,22 @@ class AccessLog {
     ];
 
     /** @var array */
-    protected $settings = [
+    protected array $settings = [
         'tableName' => 'accessLog',     // The name of the accessLog table to write to
         'idColumn' => 'accessLogID',    // The name of the autoincrement primary key for the log table
         'writeOnce' => false,           // False writes to DB for request and response, true waits until after response
         'custom' => [],                 // A list of custom column names to populate (indexed!)
-        'captureResponse' => false,     // Whether or not to record the full body of the response to the call
+        'captureResponse' => false,     // Whether to record the full body of the response to the call
         'ignoredPaths' =>     [         // Array of stings, each of which represent a path or path root which should not
             //'/authorize',             //   be logged; for example, '/authorize' matches '/authorize', '/authorize/',
         ],                              //   and '/authorize/login', but not '/auth'
     ];
 
     /** @var PDO */
-    protected $db;
+    protected PDO $db;
 
     /** @var callable[] */
-    protected $custom = [];
+    protected array $custom = [];
 
     public function __construct(PDO $db, $settings, ...$custom) {
         $this->db = $db;
@@ -48,7 +49,10 @@ class AccessLog {
         $this->custom = $custom;
     }
 
-    public function __invoke(ServerRequestInterface $request, ResponseInterface $response, callable $next) {
+    /**
+     * @throws Exception
+     */
+    public function __invoke(RequestInterface $request, ResponseInterface $response, callable $next) {
         /* If request path matches ignore, allow */
         if ($this->isIgnoredPath($request->getUri()->getPath())) {
             $response = $next($request, $response);
@@ -78,7 +82,7 @@ class AccessLog {
             }
             try {
                 $response = $next($request->withAttribute('accessLogID', $last), $response);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 if ($this->settings['writeOnce']) {
                     $this->writeAfter(
                         (new DateTime)->setTimestamp($_SERVER['REQUEST_TIME'])->format('Y-m-d H:i:s'),
@@ -133,12 +137,13 @@ class AccessLog {
 
     /**
      * Determine if the current endpoint is under an ignored path, errors
-     *  on the side of 'false' (allow) if there is an error in matching
+     * on the side of 'false' (allow) if there is an error in matching
      *
      * @param string $path
      * @return bool
      */
-    protected function isIgnoredPath($path) {
+    protected function isIgnoredPath(string $path): bool
+    {
         $uri = "/" . $path;
         $uri = preg_replace("#/+#", "/", $uri);
         foreach ((array)$this->settings["ignoredPaths"] as $ignore) {
@@ -149,7 +154,8 @@ class AccessLog {
     }
 
     //Credit: "Evan K"; https://www.php.net/manual/en/function.parse-str.php#76792
-    private function proper_parse_str($str) {
+    private function proper_parse_str($str): array|string
+    {
         if (empty($str)) {
             return '';
         }
@@ -175,10 +181,18 @@ class AccessLog {
      * @param string $reqUri    The endpoint requested
      * @param string $reqMethod One of self::httpMethodID
      * @param string $params    A JSON encoded array of ['querystring'=>[],'body'=>[]]
-     * @param array  $columns   Custom column array ['columnName'=>'columnVal', ...]
-     * @return bool|string False on error, else new record ID
+     * @param array $columns    Custom column array ['columnName'=>'columnVal', ...]
+     *
+     * @return bool|string      False on error, else new record ID
      */
-    private function writeBefore($reqTime, $reqUri, $reqMethod, $params, $columns = []) {
+    private function writeBefore(
+        string $reqTime,
+        string $reqUri,
+        string $reqMethod,
+        string $params,
+        array $columns = []
+    ): bool|string
+    {
         $customCols = '';
         foreach ($columns as $k => $v) {
             $customCols .= ', ' . $k;
@@ -218,7 +232,16 @@ class AccessLog {
      * @param string $response  The response body
      * @param array  $columns   Custom column array ['columnName'=>'columnVal', ...]
      */
-    private function writeAfter($reqTime, $reqUri, $reqMethod, $params, $resTime, $resCode, $response, $columns = []) {
+    private function writeAfter(
+        string $reqTime,
+        string $reqUri,
+        string $reqMethod,
+        string $params,
+        string $resTime,
+        string $resCode,
+        string $response,
+        array $columns = []
+    ) {
         $customCols = '';
         foreach ($columns as $k => $v) {
             $customCols .= ', ' . $k;
@@ -259,7 +282,13 @@ class AccessLog {
      * @param string $response The response body
      * @param array  $columns  Custom column array ['columnName'=>'columnVal', ...]
      */
-    private function updateAfter($insertId, $resTime, $resCode, $response, $columns = []) {
+    private function updateAfter(
+        int $insertId,
+        string $resTime,
+        string $resCode,
+        string $response,
+        array $columns = []
+    ) {
         $customCols = '';
         foreach ($columns as $k => $v) {
             $customCols .= "\n                    $k = ?";
