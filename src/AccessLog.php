@@ -1,6 +1,6 @@
 <?php
 
-namespace jstnryan\AccessLog;
+namespace HealthAware\AccessLog;
 
 use DateTime;
 use Exception;

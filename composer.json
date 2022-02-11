@@ -14,7 +14,7 @@
 	},
 	"autoload": {
 		"psr-4": {
-			"jstnryan\\AccessLog\\": "src/"
+			"HealthAware\\AccessLog\\": "src/"
 		}
 	},
 	"authors": [
