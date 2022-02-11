@@ -1,7 +1,7 @@
 {
-    "name": "jstnryan/slim-access-log",
+    "name": "healthaware/slim-access-log",
     "description": "Access auditing middleware intended for use with Slim Framework applications",
-	"homepage":"https://github.com/jstnryan/slim-access-log",
+	"homepage":"https://github.com/healthaware/slim-access-log",
 	"license": "MIT",
 	"type": "library",
 	"keywords": ["Slim Framework", "access log", "audit log", "accounting"],
