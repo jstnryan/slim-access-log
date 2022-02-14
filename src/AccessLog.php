@@ -5,8 +5,9 @@ namespace HealthAware\AccessLog;
 use DateTime;
 use Exception;
 use PDO;
-use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+use Slim\Psr7\Response;
 
 class AccessLog {
 
@@ -52,10 +53,10 @@ class AccessLog {
     /**
      * @throws Exception
      */
-    public function __invoke(RequestInterface $request, ResponseInterface $response, callable $next) {
+    public function __invoke(ServerRequestInterface $request, RequestHandlerInterface $handler) : Response {
         /* If request path matches ignore, allow */
         if ($this->isIgnoredPath($request->getUri()->getPath())) {
-            $response = $next($request, $response);
+            $response = $handler->handle($request);
         } else {
             if (count($this->custom) !== count($this->settings['custom'])) {
                 throw new Exception('AccessLog: The number of custom methods passed (' . count($this->custom) . ') does not match the number of custom column names provided (' . count($this->settings['custom']) . ').');
@@ -81,7 +82,7 @@ class AccessLog {
                 );
             }
             try {
-                $response = $next($request->withAttribute('accessLogID', $last), $response);
+                $response = $handler->handle($request->withAttribute('accessLogID', $last));
             } catch (Exception $e) {
                 if ($this->settings['writeOnce']) {
                     $this->writeAfter(
