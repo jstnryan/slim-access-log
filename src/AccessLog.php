@@ -143,7 +143,9 @@ class AccessLog {
         $uri = preg_replace("#/+#", "/", $uri);
         foreach ((array)$this->settings["ignoredPaths"] as $ignore) {
             $ignore = rtrim($ignore, "/");
-            return !!preg_match("@^{$ignore}(/.*)?$@", $uri);
+            if (!!preg_match("@^{$ignore}(/.*)?$@", $uri)) {
+                return true;
+            }
         }
         return false;
     }
